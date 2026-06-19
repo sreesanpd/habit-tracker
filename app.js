@@ -148,15 +148,19 @@ function formatStreakText(days) {
 function getHabitStatsInfo(habit) {
     const todayKey = formatDateKey(new Date());
     const totalCompletions = Object.keys(habit.history).filter(d => d <= todayKey).length;
-    let creationTime = habit.createdAt;
-    if (!creationTime) {
-        const keys = Object.keys(habit.history).sort();
-        if (keys.length > 0) {
-            creationTime = new Date(keys[0]).getTime();
-        } else {
-            creationTime = new Date().getTime();
+    
+    let creationTime = habit.createdAt || new Date().getTime();
+    
+    // Check if there is an earlier check-in date in history
+    const keys = Object.keys(habit.history).sort();
+    if (keys.length > 0) {
+        const parts = keys[0].split('-');
+        const earliestCheckIn = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])).getTime();
+        if (earliestCheckIn < creationTime) {
+            creationTime = earliestCheckIn;
         }
     }
+    
     const creationDate = new Date(creationTime);
     const dateFormatted = creationDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     
