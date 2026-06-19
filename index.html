@@ -110,9 +110,20 @@
                     <button class="week-nav-btn" style="flex: 1; width: auto; padding: 12px; font-size: 13px; font-weight: 600;" onclick="triggerImport()">Import File</button>
                     <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importData(event)">
                 </div>
-                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
                     <button class="week-nav-btn" style="flex: 1; width: auto; padding: 12px; font-size: 13px; font-weight: 600; color: #25d366; border-color: rgba(37, 211, 102, 0.2);" onclick="shareWhatsApp()">WhatsApp Sync</button>
                     <button class="week-nav-btn" style="flex: 1; width: auto; padding: 12px; font-size: 13px; font-weight: 600;" onclick="copySyncLink()">Copy Link</button>
+                </div>
+                
+                <div style="margin-top: 15px; margin-bottom: 20px; padding: 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">PWA Sync (iOS / Standalone)</span>
+                        <button class="week-nav-btn" style="width: auto; padding: 4px 8px; font-size: 11px; margin: 0;" onclick="copySyncCode()">Copy Code</button>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="sync-code-input" placeholder="Paste sync code here..." style="flex: 1; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; padding: 8px 12px; font-size: 12px; font-family: monospace; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent-purple)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+                        <button class="week-nav-btn" style="width: auto; padding: 8px 16px; font-size: 12px; font-weight: 600; background: rgba(168, 85, 247, 0.1); color: var(--accent-purple); border-color: rgba(168, 85, 247, 0.3); margin: 0;" onclick="importSyncCode()">Import</button>
+                    </div>
                 </div>
             </main>
         </div>

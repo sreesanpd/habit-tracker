@@ -857,16 +857,66 @@ function getSyncUrl() {
 // Copy sharing link to clipboard
 function copySyncLink() {
     const syncUrl = getSyncUrl();
-    navigator.clipboard.writeText(syncUrl).then(() => {
-        alert("Sync link copied to clipboard! Paste and send it to your other phone to sync. 📋");
+    const code = compressData(habits);
+    const clipText = `Sync my AuraHabit:\n${syncUrl}\n\nFor iOS standalone PWA, copy & paste this Sync Code:\n${code}`;
+    navigator.clipboard.writeText(clipText).then(() => {
+        alert("Sync details copied! Send them to your other phone. 📋");
     }).catch(err => {
-        alert("Failed to copy link. Please manually copy the address bar.");
+        navigator.clipboard.writeText(syncUrl).then(() => {
+            alert("Sync link copied! (PWA sync code copy failed, but link is copied)");
+        }).catch(() => {
+            alert("Failed to copy link.");
+        });
     });
 }
 
 // Open WhatsApp to send sync link to yourself
 function shareWhatsApp() {
     const syncUrl = getSyncUrl();
-    const textMsg = "Sync my AuraHabit: " + syncUrl;
+    const code = compressData(habits);
+    const textMsg = `Sync my AuraHabit:\n${syncUrl}\n\nFor iOS standalone PWA, copy & paste this Sync Code:\n${code}`;
     window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(textMsg), "_blank");
+}
+
+// Copy sync code only (Base64) to clipboard
+function copySyncCode() {
+    const code = compressData(habits);
+    if (!code) {
+        alert("Failed to generate sync code.");
+        return;
+    }
+    navigator.clipboard.writeText(code).then(() => {
+        alert("Sync code copied to clipboard! Paste it on your other device. 📋");
+    }).catch(err => {
+        alert("Failed to copy code. Please copy manually.");
+    });
+}
+
+// Import sync code manually from input
+function importSyncCode() {
+    const input = document.getElementById('sync-code-input');
+    const code = input ? input.value.trim() : '';
+    if (!code) {
+        alert("Please paste a sync code first.");
+        return;
+    }
+    const importedData = decompressData(code);
+    if (Array.isArray(importedData)) {
+        const isValid = importedData.every(h => h.id && h.title && h.history);
+        if (isValid) {
+            if (confirm("Import habits from sync code? This will overwrite your current daily checklist and history.")) {
+                habits = importedData;
+                saveToStorage();
+                renderHabits();
+                updateStats();
+                renderManageScreen();
+                if (input) input.value = '';
+                alert("Data successfully synced! 🎉");
+            }
+        } else {
+            alert("Sync code has an invalid data structure.");
+        }
+    } else {
+        alert("Invalid sync code format. Make sure you copied the entire code.");
+    }
 }
