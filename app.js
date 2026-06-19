@@ -822,7 +822,29 @@ function compressData(data) {
 // Decompress base64 to JSON habits
 function decompressData(str) {
     try {
-        const decoded = decodeURIComponent(atob(str));
+        let cleanStr = str.trim();
+        
+        // 1. If it contains a URL with import hash, extract the hash value
+        if (cleanStr.includes('#import=')) {
+            cleanStr = cleanStr.split('#import=')[1].split('&')[0];
+        } else if (cleanStr.includes('import=')) {
+            cleanStr = cleanStr.split('import=')[1].split('&')[0];
+        }
+
+        // 2. Extract the longest contiguous base64-like sequence to filter out surrounding instructions/text
+        const base64Regex = /[A-Za-z0-9+/=]{15,}/g;
+        const matches = cleanStr.match(base64Regex);
+        if (matches && matches.length > 0) {
+            let longestMatch = matches[0];
+            for (let i = 1; i < matches.length; i++) {
+                if (matches[i].length > longestMatch.length) {
+                    longestMatch = matches[i];
+                }
+            }
+            cleanStr = longestMatch;
+        }
+
+        const decoded = decodeURIComponent(atob(cleanStr));
         const compressedList = JSON.parse(decoded);
         return compressedList.map(c => {
             const history = {};
