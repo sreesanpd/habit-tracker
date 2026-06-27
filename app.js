@@ -8,6 +8,15 @@ let habits = JSON.parse(localStorage.getItem('aura_habits')) || [
 let selectedDate = new Date();
 selectedDate.setHours(0, 0, 0, 0);
 
+// GitHub Config State
+let githubConfig = { username: '', repo: '', token: '', lastSha: null };
+let githubSyncTimeout = null;
+
+// PWA & Service Worker Registration
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(console.error);
+}
+
 // Colors mapping
 const themeColors = {
     teal: '#14b8a6',
@@ -28,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHabits();
     setupFormListeners();
     updateStats();
+    initGithubSync();
 });
 
 // Check if loaded with a sync/import URL
@@ -443,8 +453,14 @@ function switchTab(tab) {
 }
 
 // Persistence
-function saveToStorage() {
+function saveToStorage(skipSync = false) {
     localStorage.setItem('aura_habits', JSON.stringify(habits));
+    if (!skipSync && githubConfig.username && githubConfig.repo && githubConfig.token) {
+        clearTimeout(githubSyncTimeout);
+        githubSyncTimeout = setTimeout(() => {
+            pushToGitHub();
+        }, 3000);
+    }
 }
 
 // Stats & Interactive Chart rendering
@@ -946,3 +962,193 @@ function importSyncCode() {
         alert("Invalid sync code format. Make sure you copied the entire code.");
     }
 }
+
+// GitHub Auto-Sync Feature Ported from GymReels
+function initGithubSync() {
+    const savedGithubConfig = localStorage.getItem('aura_habits_github_config');
+    const githubUsernameInput = document.getElementById('github-username');
+    const githubRepoInput = document.getElementById('github-repo');
+    const githubTokenInput = document.getElementById('github-token');
+    const btnSaveGithubSettings = document.getElementById('btn-save-github-settings');
+    const btnGithubSyncNow = document.getElementById('btn-github-sync-now');
+    const btnGithubRestore = document.getElementById('btn-github-restore');
+
+    if (savedGithubConfig) {
+        try {
+            githubConfig = JSON.parse(savedGithubConfig);
+            if (githubUsernameInput) githubUsernameInput.value = githubConfig.username || '';
+            if (githubRepoInput) githubRepoInput.value = githubConfig.repo || '';
+            if (githubTokenInput) githubTokenInput.value = githubConfig.token || '';
+            if (githubConfig.lastSha) {
+                updateGithubStatus("Ready to sync");
+            }
+        } catch(e) {}
+    }
+
+    if (btnSaveGithubSettings) {
+        btnSaveGithubSettings.addEventListener('click', () => {
+            githubConfig.username = githubUsernameInput.value.trim();
+            githubConfig.repo = githubRepoInput.value.trim();
+            githubConfig.token = githubTokenInput.value.trim();
+            
+            localStorage.setItem('aura_habits_github_config', JSON.stringify(githubConfig));
+            updateGithubStatus("Settings saved");
+            alert("GitHub settings saved! Auto-sync is active.");
+            pushToGitHub(true);
+        });
+    }
+
+    if (btnGithubSyncNow) {
+        btnGithubSyncNow.addEventListener('click', () => pushToGitHub(true));
+    }
+
+    if (btnGithubRestore) {
+        btnGithubRestore.addEventListener('click', restoreFromGitHub);
+    }
+}
+
+async function pushToGitHub(manual = false) {
+    if (!githubConfig.username || !githubConfig.repo || !githubConfig.token) return;
+    
+    updateGithubStatus("Syncing...");
+    try {
+        const path = "aura_habits_backup.json";
+        const url = `https://api.github.com/repos/${githubConfig.username}/${githubConfig.repo}/contents/${path}`;
+        
+        const contentStr = JSON.stringify(habits);
+        const encodedContent = btoa(unescape(encodeURIComponent(contentStr)));
+        
+        const body = {
+            message: "Auto-backup from AuraHabit PWA",
+            content: encodedContent,
+            branch: "master" // fallback to main if master fails, but will try default branch
+        };
+        
+        if (githubConfig.lastSha) {
+            body.sha = githubConfig.lastSha;
+        } else {
+            try {
+                const getRes = await fetch(url, { headers: { 'Authorization': `token ${githubConfig.token}` } });
+                if (getRes.ok) {
+                    const data = await getRes.json();
+                    body.sha = data.sha;
+                }
+            } catch(e) {}
+        }
+        
+        const response = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${githubConfig.token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            githubConfig.lastSha = data.content.sha;
+            localStorage.setItem('aura_habits_github_config', JSON.stringify(githubConfig));
+            const time = new Date().toLocaleTimeString();
+            updateGithubStatus(`Synced at ${time}`);
+            if (manual) alert("Successfully synced to GitHub!");
+        } else {
+            const errorData = await response.json();
+            
+            // If branch error, try main
+            if (errorData.message && errorData.message.includes("branch")) {
+                body.branch = "main";
+                const response2 = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${githubConfig.token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(body)
+                });
+                if (response2.ok) {
+                    const data = await response2.json();
+                    githubConfig.lastSha = data.content.sha;
+                    localStorage.setItem('aura_habits_github_config', JSON.stringify(githubConfig));
+                    const time = new Date().toLocaleTimeString();
+                    updateGithubStatus(`Synced at ${time}`);
+                    if (manual) alert("Successfully synced to GitHub!");
+                    return;
+                }
+            }
+
+            console.error(errorData);
+            updateGithubStatus(`Error: ${response.status}`);
+            if (manual) alert("Failed to sync: " + (errorData.message || response.statusText));
+        }
+    } catch (e) {
+        console.error(e);
+        updateGithubStatus("Network Error");
+        if (manual) alert("Network error during sync.");
+    }
+}
+
+async function restoreFromGitHub() {
+    if (!githubConfig.username || !githubConfig.repo || !githubConfig.token) {
+        alert("Please save your GitHub settings first.");
+        return;
+    }
+    
+    if (!confirm("This will overwrite your entire local daily checklist and history with the backup from GitHub. Are you sure?")) return;
+    
+    updateGithubStatus("Restoring...");
+    try {
+        const path = "aura_habits_backup.json";
+        const url = `https://api.github.com/repos/${githubConfig.username}/${githubConfig.repo}/contents/${path}`;
+        
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `token ${githubConfig.token}`,
+                'Accept': 'application/vnd.github.v3.raw'
+            }
+        });
+        
+        if (response.ok) {
+            const textContent = await response.text();
+            const importedData = JSON.parse(textContent);
+            
+            habits = importedData;
+            
+            try {
+                const headRes = await fetch(url, { headers: { 'Authorization': `token ${githubConfig.token}` } });
+                if (headRes.ok) {
+                    const headData = await headRes.json();
+                    githubConfig.lastSha = headData.sha;
+                    localStorage.setItem('aura_habits_github_config', JSON.stringify(githubConfig));
+                }
+            } catch(e){}
+            
+            saveToStorage(true); // skip sync when restoring
+            
+            renderWeekStrip();
+            renderHabits();
+            updateStats();
+            renderManageScreen();
+            
+            updateGithubStatus("Restored successfully");
+            alert("Habits and history restored from GitHub!");
+        } else {
+            const errorData = await response.json().catch(() => ({ message: "File might not exist yet." }));
+            updateGithubStatus("Restore Failed");
+            alert("Failed to restore: " + (errorData.message || "File might not exist yet."));
+        }
+    } catch (e) {
+        console.error(e);
+        updateGithubStatus("Network Error");
+        alert("Network error during restore.");
+    }
+}
+
+function updateGithubStatus(msg) {
+    const syncStatusIndicator = document.getElementById('sync-status-indicator');
+    if (syncStatusIndicator) {
+        syncStatusIndicator.textContent = msg;
+        syncStatusIndicator.style.color = msg.includes("Error") || msg.includes("Failed") ? "#f43f5e" : "var(--text-muted)";
+    }
+}
+

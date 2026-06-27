@@ -15,25 +15,47 @@ Live Demo: `https://sreesanpd.github.io/habit-tracker/` (Replace with your link!
 
 ---
 
-## 🔒 Privacy-First Syncing (Zero Server Setup)
-AuraHabit stores all data locally in browser `LocalStorage`. 
+## 🔒 Data Backups & Synchronization
 
-To sync data between multiple phones without storing your private history on public database servers, AuraHabit uses **Link-Based Sync**:
-1. **Compress**: The app compresses and encodes your entire checklist history into a compact URL hash segment (`#import=...`).
-2. **WhatsApp / Copy Link**: Send this sync link to yourself (e.g., via WhatsApp).
-3. **Local Import**: When you click the link on another phone, the browser loads the app files, parses the hash locally, and restores your history. **Your data is never sent to GitHub Pages servers.**
+AuraHabit stores all data locally in browser `LocalStorage`. To prevent data loss and keep routines synced across devices, you have two options:
+
+### 1. Cloud Auto-Sync (GitHub) — Recommended
+AuraHabit can automatically back up your daily routines and logs to a private GitHub repository, keeping your checklist in sync across your phone, tablet, and computer without needing a third-party backend database.
+
+#### Setup Guide:
+1. Go to your GitHub account and create an **empty, private repository** (e.g., `habit-tracker-backup`).
+2. Go to **Settings** > **Developer Settings** > **Personal access tokens** > **Fine-grained tokens**.
+3. Click **Generate new token**.
+4. Under **Repository access**, select **Only select repositories** and pick your backup repository.
+5. Under **Permissions** > **Repository permissions**, find **Contents** and grant **Read and write** access.
+6. Generate and copy the token.
+7. Open AuraHabit, head to the **Settings/Manage** screen, and fill in your **GitHub Username**, **Repository Name**, and **PAT Token** in the Cloud Auto-Sync section.
+8. Tap **Save Setup**. Your routines will now automatically sync in the background 3 seconds after any checklist change or routine edit!
+
+### 2. PWA Code Sync (Stateless / Offline)
+To sync data between devices offline or without a GitHub account:
+1. **Compress**: Tap **Copy Code** on the Settings screen. This encodes your entire checklist history into a base64 string.
+2. **WhatsApp / Send**: Share this sync code with your other device.
+3. **Local Import**: Paste the code into the **PWA Sync** input box and tap **Import** to merge/restore your history locally.
 
 ---
 
-## 📲 Installation (PWA)
-Add AuraHabit to your mobile device's home screen:
+## 📲 Installation & Offline Support (PWA)
+
+AuraHabit implements a Web App Manifest and Service Worker providing full installation support and offline caching:
 1. Open the live site in Safari (iOS) or Chrome (Android).
-2. Tap the **Share** or **Menu** button.
+2. Tap the browser's **Share** or **Menu** button.
 3. Select **Add to Home Screen**.
+4. Launch AuraHabit from your home screen to enjoy the standalone, full-screen UI. 
+
+The service worker caching strategy ensures that next time you launch the app, updates are loaded automatically from the network and stale caches are cleaned up.
 
 ---
 
 ## 🛠️ Project Structure
-* `index.html` - Static application screen layouts.
-* `style.css` - Custom styling variable definitions, animations, and typography.
-* `app.js` - Dynamic core rendering, calculations, and local storage handlers.
+* `index.html` - Static application screen layouts and PWA manifest linkages.
+* `style.css` - Custom styling variables, glassmorphic layout rules, heatmaps, and responsiveness.
+* `app.js` - Dynamic core rendering, stats calculations, PWA service worker registration, and GitHub contents REST integration.
+* `sw.js` - Service Worker caching configuration and lifecycle controls.
+* `manifest.json` - PWA identity, colors, and standalone startup specifications.
+

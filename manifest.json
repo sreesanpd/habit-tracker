@@ -1,0 +1,16 @@
+{
+  "name": "AuraHabit",
+  "short_name": "AuraHabit",
+  "description": "Premium Habit Tracker",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0b10",
+  "theme_color": "#a855f7",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
