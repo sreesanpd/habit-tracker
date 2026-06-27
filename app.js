@@ -991,10 +991,44 @@ function initGithubSync() {
             githubConfig.repo = githubRepoInput.value.trim();
             githubConfig.token = githubTokenInput.value.trim();
             
+            if (!githubConfig.username || !githubConfig.repo || !githubConfig.token) {
+                alert("Please fill in all fields.");
+                return;
+            }
+            
             localStorage.setItem('aura_habits_github_config', JSON.stringify(githubConfig));
-            updateGithubStatus("Settings saved");
-            alert("GitHub settings saved! Auto-sync is active.");
-            pushToGitHub(true);
+            updateGithubStatus("Checking repository...");
+            
+            // Check if backup file already exists on GitHub
+            const path = "aura_habits_backup.json";
+            const url = `https://api.github.com/repos/${githubConfig.username}/${githubConfig.repo}/contents/${path}`;
+            
+            fetch(url, { headers: { 'Authorization': `token ${githubConfig.token}` } })
+                .then(async (res) => {
+                    if (res.ok) {
+                        const data = await res.json();
+                        githubConfig.lastSha = data.sha;
+                        localStorage.setItem('aura_habits_github_config', JSON.stringify(githubConfig));
+                        
+                        updateGithubStatus("Backup found");
+                        if (confirm("Found an existing backup in your GitHub repository. Do you want to RESTORE the backup from GitHub onto this device?\n\n- Click OK to load the remote backup (overwrites this device's current checklist).\n- Click Cancel to overwrite the remote backup with this device's current checklist.")) {
+                            restoreFromGitHub();
+                        } else {
+                            pushToGitHub(true);
+                        }
+                    } else if (res.status === 404) {
+                        updateGithubStatus("Creating backup...");
+                        pushToGitHub(true);
+                    } else {
+                        updateGithubStatus(`Error: ${res.status}`);
+                        alert(`Could not verify repository. Status: ${res.status}. Please check your token permissions, username, and repository name.`);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    updateGithubStatus("Connection error");
+                    alert("Settings saved, but a network error occurred while verifying the backup file status.");
+                });
         });
     }
 
